@@ -13,49 +13,12 @@ const userSchema = new mongoose.Schema(
       enum: ["male", "female", "other"],
       default: "other",
     },
-    mobile: { type: String, default: "", validate: /\d{10,15}/ },
-    followers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    following: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    mobile: { type: String, default: "" },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     posts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
+    messages: [{ type: mongoose.Schema.Types.ObjectId, ref: "Message" }],
     bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
-    notifications: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Notification",
-      },
-    ],
-
-    friendRequests: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-
-    isVerified: { type: Boolean, default: false },
-    isOnline: { type: Boolean, default: false },
-    lastActive: { type: Date, default: Date.now },
-
-    role: {
-      type: String,
-      enum: ["user", "admin", "moderator"],
-      default: "user",
-    },
-    status: {
-      type: String,
-      enum: ["active", "banned", "deactivated"],
-      default: "active",
-    },
   },
   { timestamps: true }
 );
