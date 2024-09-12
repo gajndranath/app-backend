@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import getDataUri from "../config/datauri.js";
 import cloudinary from "../config/cloudinary.js";
+// import redisClient from "../config/radis.js";
 
 // Register Controller
 export const register = async (req, res) => {
@@ -94,9 +95,9 @@ export const login = async (req, res) => {
     return res
       .cookie("token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production", // secure flag only in production
+        secure: process.env.NODE_ENV === "production", // Secure flag only in production
         sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
       })
       .json({
         message: `Welcome back ${user.username}`,
@@ -141,6 +142,16 @@ export const logout = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const userId = req.params.id;
+
+    // Check cache first radis
+    /*     const cachedUser = await redisClient.get(`user:${userId}`);
+    if (cachedUser) {
+      return res
+        .status(200)
+        .json({ user: JSON.parse(cachedUser), success: true });
+    }
+ */
+    // If not cached, fetch from database
     const user = await User.findById(userId).select("-password"); // Exclude password
     if (!user) {
       return res.status(404).json({
@@ -148,6 +159,9 @@ export const getProfile = async (req, res) => {
         success: false,
       });
     }
+
+    // Cache the result
+    // await redisClient.set(`user:${userId}`, JSON.stringify(user), "EX", 3600); // Cache for 1 hour
 
     return res.status(200).json({ user, success: true });
   } catch (error) {
@@ -159,7 +173,7 @@ export const getProfile = async (req, res) => {
   }
 };
 
-//edit profile controller
+// Edit Profile Controller
 export const editProfile = async (req, res) => {
   try {
     const userId = req.id;
@@ -172,7 +186,7 @@ export const editProfile = async (req, res) => {
       cloudResponse = await cloudinary.uploader.upload(fileUri);
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({
         message: "User not found.",
@@ -184,6 +198,10 @@ export const editProfile = async (req, res) => {
     if (profilePicture) user.profilePicture = cloudResponse.secure_url;
 
     await user.save();
+
+    // Clear cache for this user profile
+    // await redisClient.del(`user:${userId}`);
+
     return res.status(200).json({
       message: "Profile updated",
       success: true,
@@ -306,17 +324,15 @@ export const getSuggestedUsers = async (req, res) => {
   }
 };
 
+// Follow or Unfollow Controller
 export const followOrUnfollow = async (req, res) => {
   try {
-    //self user
     const userFollower = req.id;
-
-    //whom to follow
     const userFollowing = req.params.id;
 
     if (userFollower == userFollowing) {
       return res.status(400).json({
-        message: "You cant follow/Unfollow yourself",
+        message: "You can't follow/unfollow yourself",
         success: false,
       });
     }
@@ -325,7 +341,7 @@ export const followOrUnfollow = async (req, res) => {
     const targetUser = await User.findById(userFollowing);
 
     if (!user || !targetUser) {
-      return res.status(400).json({
+      return res.status(404).json({
         message: "User not found",
         success: false,
       });
@@ -333,7 +349,7 @@ export const followOrUnfollow = async (req, res) => {
 
     const isFollowing = user.following.includes(userFollowing);
     if (isFollowing) {
-      //unfollow logic
+      // Unfollow logic
       await Promise.all([
         User.updateOne(
           { _id: userFollower },
@@ -341,7 +357,7 @@ export const followOrUnfollow = async (req, res) => {
         ),
         User.updateOne(
           { _id: userFollowing },
-          { $pull: { following: userFollowers } }
+          { $pull: { following: userFollower } }
         ),
       ]);
 
@@ -350,7 +366,7 @@ export const followOrUnfollow = async (req, res) => {
         success: true,
       });
     } else {
-      //Follow logic
+      // Follow logic
       await Promise.all([
         User.updateOne(
           { _id: userFollower },
@@ -361,12 +377,17 @@ export const followOrUnfollow = async (req, res) => {
           { $push: { following: userFollower } }
         ),
       ]);
+
       return res.status(200).json({
         message: "Followed successfully",
         success: true,
       });
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    return res.status(500).json({
+      message: "Server error, please try again later",
+      success: false,
+    });
   }
 };
