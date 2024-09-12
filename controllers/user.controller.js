@@ -1,6 +1,8 @@
 import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import getDataUri from "../config/datauri.js";
+import cloudinary from "../config/cloudinary.js";
 
 // Register Controller
 export const register = async (req, res) => {
@@ -157,9 +159,213 @@ export const getProfile = async (req, res) => {
   }
 };
 
+//edit profile controller
 export const editProfile = async (req, res) => {
   try {
-    // const
+    const userId = req.id;
+    const { bio, gender } = req.body;
+    const profilePicture = req.file;
+    let cloudResponse;
+
+    if (profilePicture) {
+      const fileUri = getDataUri(profilePicture);
+      cloudResponse = await cloudinary.uploader.upload(fileUri);
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+        success: false,
+      });
+    }
+    if (bio) user.bio = bio;
+    if (gender) user.gender = gender;
+    if (profilePicture) user.profilePicture = cloudResponse.secure_url;
+
+    await user.save();
+    return res.status(200).json({
+      message: "Profile updated",
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Server error, please try again later",
+      success: false,
+    });
+  }
+};
+
+// Helper function to get mutual friends
+const getMutualFriends = async (currentUserId, userFriends) => {
+  const mutualFriendCounts = new Map();
+
+  // Loop through each friend of the current user
+  await Promise.all(
+    userFriends.map(async (friendId) => {
+      const friend = await User.findById(friendId).select("friends");
+
+      if (!friend) return;
+
+      // For each friend of a friend, count mutuals
+      friend.friends.forEach((mutualFriendId) => {
+        if (
+          mutualFriendId.toString() !== currentUserId &&
+          !userFriends.includes(mutualFriendId)
+        ) {
+          mutualFriendCounts.set(
+            mutualFriendId,
+            (mutualFriendCounts.get(mutualFriendId) || 0) + 1
+          );
+        }
+      });
+    })
+  );
+
+  return Array.from(mutualFriendCounts.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .map(([userId]) => userId);
+};
+
+// Helper function to get contact-based suggestions
+const getContactBasedSuggestions = async (phoneContacts, currentUserId) => {
+  if (!phoneContacts || !phoneContacts.length) return [];
+
+  const contactMatches = await User.find({
+    phone: { $in: phoneContacts },
+    _id: { $ne: currentUserId },
+  }).select("_id");
+
+  return contactMatches.map((user) => user._id);
+};
+
+// Helper function to get new users
+const getNewUsers = async (currentUserId) => {
+  const newUsers = await User.find({
+    _id: { $ne: currentUserId },
+  })
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .select("_id");
+
+  return newUsers.map((user) => user._id);
+};
+
+// Friend Suggestion Controller
+export const getSuggestedUsers = async (req, res) => {
+  try {
+    const currentUserId = req.id; // Current user's ID (from token)
+    const currentUser = await User.findById(currentUserId).populate(
+      "friends contacts"
+    );
+
+    if (!currentUser) {
+      return res.status(404).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+
+    const { friends: userFriends, contacts: phoneContacts } = currentUser;
+
+    // Fetch mutual friends suggestions
+    const mutualFriends = await getMutualFriends(currentUserId, userFriends);
+
+    // Fetch phone contact suggestions
+    const contactSuggestions = await getContactBasedSuggestions(
+      phoneContacts,
+      currentUserId
+    );
+
+    // Fetch new user suggestions
+    const newUsers = await getNewUsers(currentUserId);
+
+    // Merge and prioritize suggestions: mutual friends > contacts > new users
+    const suggestionsSet = new Set([
+      ...mutualFriends,
+      ...contactSuggestions,
+      ...newUsers,
+    ]);
+
+    const suggestedUsers = await User.find({
+      _id: { $in: Array.from(suggestionsSet) },
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      users: suggestedUsers,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Server error, please try again later",
+      success: false,
+    });
+  }
+};
+
+export const followOrUnfollow = async (req, res) => {
+  try {
+    //self user
+    const userFollower = req.id;
+
+    //whom to follow
+    const userFollowing = req.params.id;
+
+    if (userFollower == userFollowing) {
+      return res.status(400).json({
+        message: "You cant follow/Unfollow yourself",
+        success: false,
+      });
+    }
+
+    const user = await User.findById(userFollower);
+    const targetUser = await User.findById(userFollowing);
+
+    if (!user || !targetUser) {
+      return res.status(400).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+
+    const isFollowing = user.following.includes(userFollowing);
+    if (isFollowing) {
+      //unfollow logic
+      await Promise.all([
+        User.updateOne(
+          { _id: userFollower },
+          { $pull: { following: userFollowing } }
+        ),
+        User.updateOne(
+          { _id: userFollowing },
+          { $pull: { following: userFollowers } }
+        ),
+      ]);
+
+      return res.status(200).json({
+        message: "Unfollowed successfully",
+        success: true,
+      });
+    } else {
+      //Follow logic
+      await Promise.all([
+        User.updateOne(
+          { _id: userFollower },
+          { $push: { following: userFollowing } }
+        ),
+        User.updateOne(
+          { _id: userFollowing },
+          { $push: { following: userFollower } }
+        ),
+      ]);
+      return res.status(200).json({
+        message: "Followed successfully",
+        success: true,
+      });
+    }
   } catch (error) {
     console.log(error);
   }
