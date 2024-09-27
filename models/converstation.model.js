@@ -8,7 +8,4 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default Conversation = mongoose.model(
-  "Conversation",
-  conversationSchema
-);
+export const Conversation = mongoose.model("Conversation", conversationSchema);

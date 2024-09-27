@@ -7,6 +7,8 @@ import connectDB from "./config/db.js";
 import securityMiddleware from "./middlewares/security.js";
 
 import userRoutes from "./routes/userRoutes.js";
+import postRoutes from "./routes/postRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 dotenv.config({});
 
@@ -38,6 +40,8 @@ app.use(cors(corsOptions));
 
 // Routes
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/post", postRoutes);
+app.use("/api/v1/message", messageRoutes);
 
 app.listen(PORT, () => {
   connectDB();
