@@ -33,7 +33,7 @@ app.use(securityMiddleware);
 
 // CORS Configuration
 const corsOptions = {
-  origin: "http://localhost:5173",
+  origin: ["http://localhost:5173", "https://app-backend-47pn.onrender.com"],
   credentials: true,
 };
 app.use(cors(corsOptions));
