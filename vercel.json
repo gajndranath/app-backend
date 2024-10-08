@@ -4,6 +4,7 @@
   "routes": [
     { "src": "/api/v1/user/(.*)", "dest": "index.js" },
     { "src": "/api/v1/post/(.*)", "dest": "index.js" },
+    { "src": "/api/v1/message/(.*)", "dest": "index.js" },
     { "src": "/api/v1/message/(.*)", "dest": "index.js" }
   ]
 }
