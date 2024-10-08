@@ -19,6 +19,15 @@ export const register = async (req, res) => {
       });
     }
 
+    // Check if username is already taken
+    const usernameExists = await User.findOne({ username });
+    if (usernameExists) {
+      return res.status(409).json({
+        message: "Username is already taken.",
+        success: false,
+      });
+    }
+
     // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
