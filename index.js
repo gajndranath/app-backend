@@ -33,8 +33,11 @@ app.use(securityMiddleware);
 
 // CORS Configuration
 const corsOptions = {
-  origin: ["http://localhost:5173", "https://app-backend-47pn.onrender.com"],
+  origin: ["https://app-frontend-tau-three.vercel.app/"],
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
 
@@ -51,3 +54,5 @@ app.listen(PORT, () => {
 connectDB();
 
 export default app;
+
+// "http://localhost:5173",
