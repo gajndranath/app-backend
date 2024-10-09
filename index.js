@@ -33,7 +33,7 @@ app.use(securityMiddleware);
 
 // CORS Configuration
 const corsOptions = {
-  origin: ["https://app-frontend-tau-three.vercel.app/"],
+  origin: ["https://app-backend-47pn.onrender.com"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
