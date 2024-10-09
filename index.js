@@ -15,7 +15,7 @@ dotenv.config({});
 const app = express();
 
 // Server
-// const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 // Routes
 app.get("/", (_, res) => {
@@ -46,12 +46,10 @@ app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/post", postRoutes);
 app.use("/api/v1/message", messageRoutes);
 
-// app.listen(PORT, () => {
-//   connectDB();
-//   console.log(`Server is listening on port ${PORT}`);
-// });
-
-connectDB();
+app.listen(PORT, () => {
+  connectDB();
+  console.log(`Server is listening on port ${PORT}`);
+});
 
 export default app;
 
